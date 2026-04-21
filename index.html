@@ -1,0 +1,1967 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G4460 扭蛋機 · Digital Makers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+:root {
+  --bg-dark: #0D1117;
+  --bg-darker: #050810;
+  --bg-panel: #161B22;
+  --accent-blue: #58A6FF;
+  --accent-orange: #F0883E;
+  --accent-green: #3FB950;
+  --accent-red: #F85149;
+  --accent-yellow: #E3B341;
+  --accent-purple: #BC8CFF;
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-dim: #484F58;
+  --grid-line: rgba(88, 166, 255, 0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+@keyframes crtFlicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.98; }
+}
+
+@keyframes scanlines {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 4px; }
+}
+
+@keyframes machineShake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-3px, -2px) rotate(-0.5deg); }
+  20% { transform: translate(3px, -1px) rotate(0.5deg); }
+  30% { transform: translate(-2px, 2px) rotate(-0.3deg); }
+  40% { transform: translate(2px, 1px) rotate(0.3deg); }
+  50% { transform: translate(-3px, -1px) rotate(-0.5deg); }
+  60% { transform: translate(2px, 2px) rotate(0.5deg); }
+  70% { transform: translate(-1px, -2px) rotate(-0.3deg); }
+  80% { transform: translate(3px, 1px) rotate(0.3deg); }
+  90% { transform: translate(-2px, -1px) rotate(-0.5deg); }
+}
+
+@keyframes capsuleDrop {
+  0% { transform: translate(0, -140px) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  65% { transform: translate(0, 0) rotate(300deg); }
+  72% { transform: translate(0, -10px) rotate(320deg); }
+  80% { transform: translate(0, 0) rotate(340deg); }
+  88% { transform: translate(0, -4px) rotate(350deg); }
+  100% { transform: translate(0, 0) rotate(360deg); opacity: 1; }
+}
+
+@keyframes capsuleSpin {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes capsulePulse {
+  0%, 100% { box-shadow: 0 0 20px var(--accent-yellow), 0 0 40px var(--accent-orange); transform: scale(1); }
+  50% { box-shadow: 0 0 30px var(--accent-yellow), 0 0 60px var(--accent-orange); transform: scale(1.05); }
+}
+
+@keyframes capsuleOpen {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes cardReveal {
+  0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  70% { transform: scale(1.1) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes iconBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 10px currentColor; }
+  50% { text-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+}
+
+@keyframes dotBlink {
+  0%, 20% { opacity: 0; }
+  50% { opacity: 1; }
+  80%, 100% { opacity: 0; }
+}
+
+@keyframes progressGlow {
+  0%, 100% { box-shadow: 0 0 10px var(--accent-green); }
+  50% { box-shadow: 0 0 25px var(--accent-green); }
+}
+
+@keyframes cardShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: 'Noto Sans TC', sans-serif;
+  overflow-x: hidden;
+}
+
+body {
+  background:
+    radial-gradient(ellipse at top, rgba(88, 166, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(240, 136, 62, 0.06), transparent 60%),
+    var(--bg-dark);
+  min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 2px,
+    rgba(255, 255, 255, 0.015) 2px,
+    rgba(255, 255, 255, 0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+  animation: scanlines 8s linear infinite;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--text-dim);
+  margin-bottom: 32px;
+}
+
+.header-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: var(--accent-blue);
+  letter-spacing: 1px;
+}
+
+.header-title .subtitle {
+  display: block;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  letter-spacing: 2px;
+}
+
+.header-meta {
+  text-align: right;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+.header-meta .status {
+  color: var(--accent-green);
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+.screen {
+  width: 100%;
+  max-width: 1100px;
+  display: none;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.screen.active { display: block; }
+
+/* ============ START SCREEN ============ */
+
+.start-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .start-container { grid-template-columns: 1fr; }
+}
+
+.hero-text h1 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 28px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+
+.hero-text h1 .highlight-orange { color: var(--accent-orange); }
+.hero-text h1 .highlight-blue { color: var(--accent-blue); }
+
+.hero-text p {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 32px;
+  letter-spacing: 1px;
+}
+
+.group-input-wrapper {
+  background: var(--bg-panel);
+  border: 2px solid var(--text-dim);
+  padding: 24px;
+  position: relative;
+}
+
+.group-input-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  background: linear-gradient(45deg, var(--accent-blue), var(--accent-orange), var(--accent-green));
+  z-index: -1;
+  opacity: 0.4;
+}
+
+.group-input-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--accent-orange);
+  margin-bottom: 16px;
+  letter-spacing: 2px;
+}
+
+.group-input {
+  width: 100%;
+  background: var(--bg-darker);
+  border: 2px solid var(--text-dim);
+  color: var(--text-primary);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 18px;
+  padding: 16px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.group-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 20px rgba(88, 166, 255, 0.3);
+}
+
+.group-input::placeholder {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.btn-insert-coin {
+  display: block;
+  width: 100%;
+  margin-top: 24px;
+  padding: 20px;
+  background: var(--accent-orange);
+  color: var(--bg-darker);
+  border: none;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 4px 0 var(--accent-red);
+}
+
+.btn-insert-coin:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--accent-red), 0 0 30px rgba(240, 136, 62, 0.5);
+}
+
+.btn-insert-coin:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--accent-red);
+}
+
+.btn-insert-coin:disabled {
+  background: var(--text-dim);
+  box-shadow: 0 4px 0 var(--bg-darker);
+  cursor: not-allowed;
+  color: var(--bg-darker);
+}
+
+.hero-machine {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  min-height: 400px;
+}
+
+/* ============ MACHINE SVG CONTAINER ============ */
+
+.machine-svg {
+  width: 320px;
+  height: auto;
+  filter: drop-shadow(0 0 30px rgba(248, 81, 73, 0.3));
+}
+
+.machine-svg.shaking {
+  animation: machineShake 0.12s linear infinite;
+}
+
+.capsule-drop {
+  transform-origin: 10px 10px;
+  animation: capsuleDrop 2s cubic-bezier(0.5, 0, 0.7, 1) forwards;
+}
+
+/* ============ DETECTING SCREEN ============ */
+
+.detect-container {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .detect-container { grid-template-columns: 1fr; }
+}
+
+.camera-frame {
+  position: relative;
+  background: var(--bg-darker);
+  border: 4px solid var(--accent-blue);
+  padding: 8px;
+  aspect-ratio: 4 / 3;
+  box-shadow: 0 0 40px rgba(88, 166, 255, 0.3);
+}
+
+.camera-frame::before {
+  content: 'LIVE';
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--accent-red);
+  background: var(--bg-darker);
+  padding: 4px 8px;
+  z-index: 2;
+  animation: glowPulse 1.5s ease-in-out infinite;
+}
+
+.camera-frame::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-red);
+  border-radius: 50%;
+  animation: dotBlink 1s ease-in-out infinite;
+  z-index: 2;
+}
+
+#camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  display: block;
+}
+
+#camera-canvas {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  pointer-events: none;
+  transform: scaleX(-1);
+}
+
+.camera-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 240px;
+  border: 3px dashed var(--accent-yellow);
+  border-radius: 50% 50% 45% 45%;
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.camera-overlay.detected { border-color: var(--accent-green); opacity: 0.8; }
+
+.detect-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.instruction-primary {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 24px;
+  line-height: 1.6;
+  color: var(--accent-yellow);
+}
+
+.instruction-primary .big {
+  display: block;
+  font-size: 36px;
+  margin-top: 12px;
+  color: var(--text-primary);
+  animation: glowPulse 1.5s ease-in-out infinite;
+}
+
+.mouth-progress {
+  background: var(--bg-panel);
+  border: 2px solid var(--text-dim);
+  padding: 20px;
+}
+
+.mouth-progress-label {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.mouth-progress-bar {
+  height: 28px;
+  background: var(--bg-darker);
+  border: 2px solid var(--text-dim);
+  position: relative;
+  overflow: hidden;
+}
+
+.mouth-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+  transition: width 0.1s ease-out;
+  position: relative;
+}
+
+.mouth-progress-fill.charged {
+  background: var(--accent-green);
+  animation: progressGlow 0.8s ease-in-out infinite;
+}
+
+.mouth-progress-value {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--accent-green);
+}
+
+.status-messages {
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  color: var(--text-secondary);
+  min-height: 28px;
+  letter-spacing: 1px;
+}
+
+.status-messages.error { color: var(--accent-red); }
+.status-messages.success { color: var(--accent-green); }
+
+.btn-cancel {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--text-dim);
+  padding: 10px 16px;
+  cursor: pointer;
+  align-self: start;
+  letter-spacing: 1px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.btn-cancel:hover { color: var(--accent-red); border-color: var(--accent-red); }
+
+/* ============ DRAWING SCREEN ============ */
+
+.drawing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  gap: 32px;
+}
+
+.drawing-status {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  color: var(--accent-yellow);
+  animation: glowPulse 0.8s ease-in-out infinite;
+}
+
+/* ============ REVEAL SCREEN ============ */
+
+.reveal-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  gap: 32px;
+  position: relative;
+}
+
+.floating-capsule {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+  animation: capsuleSpin 1.5s ease-in-out infinite, capsulePulse 2s ease-in-out infinite;
+  transition: transform 0.2s;
+}
+
+.floating-capsule:hover { transform: scale(1.1); }
+
+.floating-capsule.opening { animation: capsuleOpen 0.6s ease-out forwards; }
+
+.floating-capsule-top {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.1));
+  border-radius: 140px 140px 0 0;
+  border: 3px solid rgba(255,255,255,0.6);
+  border-bottom: none;
+}
+
+.floating-capsule-bottom {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 50%;
+  background: var(--accent-orange);
+  border-radius: 0 0 140px 140px;
+  border: 3px solid var(--accent-red);
+  border-top: none;
+}
+
+.capsule-instruction {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: var(--accent-yellow);
+  animation: glowPulse 1s ease-in-out infinite;
+}
+
+.task-card {
+  background: var(--bg-panel);
+  border: 4px solid var(--accent-yellow);
+  padding: 40px;
+  width: 100%;
+  max-width: 600px;
+  position: relative;
+  animation: cardReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  box-shadow:
+    0 0 60px rgba(227, 179, 65, 0.4),
+    0 0 120px rgba(227, 179, 65, 0.2),
+    inset 0 0 0 2px var(--bg-darker);
+}
+
+.task-card::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(227, 179, 65, 0.3) 50%,
+    transparent 100%);
+  background-size: 200% 100%;
+  animation: cardShimmer 3s linear infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 2px dashed var(--text-dim);
+  margin-bottom: 24px;
+}
+
+.card-number {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--accent-orange);
+  letter-spacing: 2px;
+}
+
+.card-group-name {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  color: var(--accent-blue);
+  letter-spacing: 1px;
+}
+
+.card-icon {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.card-icon svg {
+  width: 120px;
+  height: 120px;
+  animation: iconBob 2.5s ease-in-out infinite;
+}
+
+.card-theme {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 32px;
+  color: var(--text-primary);
+  text-align: center;
+  margin: 24px 0 20px;
+  letter-spacing: 4px;
+  line-height: 1.4;
+}
+
+.card-flavor {
+  font-family: 'Noto Sans TC', sans-serif;
+  font-weight: 400;
+  font-size: 18px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.7;
+  margin-bottom: 24px;
+  padding: 20px;
+  border-left: 3px solid var(--accent-orange);
+  border-right: 3px solid var(--accent-orange);
+  background: var(--bg-darker);
+  letter-spacing: 0.5px;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 2px dashed var(--text-dim);
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.reveal-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.btn-secondary {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  padding: 14px 24px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 2px solid var(--text-dim);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.btn-primary {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  padding: 14px 24px;
+  background: var(--accent-green);
+  color: var(--bg-darker);
+  border: 2px solid var(--accent-green);
+  cursor: pointer;
+  letter-spacing: 1px;
+  font-weight: bold;
+  transition: box-shadow 0.2s, transform 0.1s;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 25px var(--accent-green);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+/* ============ BOARD / RECORD WALL ============ */
+
+.board-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.board-header h2 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 20px;
+  color: var(--accent-blue);
+  margin-bottom: 12px;
+  letter-spacing: 2px;
+}
+
+.board-header p {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+@media (max-width: 700px) {
+  .board-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.board-slot {
+  background: var(--bg-panel);
+  border: 2px solid var(--text-dim);
+  padding: 28px 20px;
+  text-align: center;
+  position: relative;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.board-slot.unclaimed { cursor: default; }
+
+.board-slot.claimed {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 20px rgba(227, 179, 65, 0.2);
+}
+
+.slot-number {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.slot-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  margin: 10px 0;
+}
+
+.slot-icon svg {
+  width: 80px;
+  height: 80px;
+}
+
+.slot-fog {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(88, 166, 255, 0.1), transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(240, 136, 62, 0.1), transparent 50%),
+    rgba(13, 17, 23, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+.slot-fog-mark {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 48px;
+  color: var(--text-dim);
+  text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.slot-theme {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+
+.slot-group {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--accent-green);
+  margin-top: 10px;
+  letter-spacing: 1px;
+}
+
+.slot-empty-label {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  letter-spacing: 2px;
+}
+
+.board-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ============ COMPLETION ============ */
+
+.complete-container {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.complete-container h2 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 32px;
+  color: var(--accent-green);
+  margin-bottom: 20px;
+  animation: glowPulse 2s ease-in-out infinite;
+  letter-spacing: 4px;
+}
+
+.complete-container p {
+  font-family: 'VT323', monospace;
+  font-size: 24px;
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+}
+
+/* ============ FOOTER ============ */
+
+footer {
+  width: 100%;
+  max-width: 1100px;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--text-dim);
+  text-align: center;
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+/* ============ ADMIN PANEL ============ */
+
+.admin-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--text-dim);
+  padding: 12px;
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: none;
+  z-index: 200;
+}
+
+.admin-panel.visible { display: block; }
+
+.admin-panel button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--bg-darker);
+  border: 1px solid var(--text-dim);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.admin-panel button:hover { color: var(--accent-red); border-color: var(--accent-red); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<header>
+  <div class="header-title">
+    G4460 · GACHAPON
+    <span class="subtitle">// Digital Makers · Spring 2026</span>
+  </div>
+  <div class="header-meta">
+    <div>SYSTEM <span class="status" id="sys-status">ONLINE</span></div>
+    <div id="draws-remaining">SLOTS REMAINING: 6/6</div>
+  </div>
+</header>
+
+<!-- ============ SCREEN 1: BOARD / START ============ -->
+
+<div class="screen active" id="screen-board">
+  <div class="board-header">
+    <h2 id="board-title">轉吧，六個命運在等你們</h2>
+    <p id="board-subtitle">每組派一位代表上來抽。抽過的不會再出現。</p>
+  </div>
+
+  <div class="board-grid" id="board-grid"></div>
+
+  <div class="board-actions">
+    <button class="btn-primary" id="btn-draw-next">下一組來抽</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: START / GROUP INPUT ============ -->
+
+<div class="screen" id="screen-start">
+  <div class="start-container">
+    <div class="hero-text">
+      <h1>
+        第 <span class="highlight-orange" id="start-draw-number">N</span> 組<br>
+        準備好了嗎？
+      </h1>
+      <p>
+        輸入你們的組名，對著鏡頭張大嘴。<br>
+        扭蛋掉下來，你們會拿到一個主題。<br>
+        抽到什麼，就做什麼。
+      </p>
+      <div class="group-input-wrapper">
+        <div class="group-input-label">// 組名</div>
+        <input type="text" class="group-input" id="group-input" placeholder="例如：阿公67" maxlength="12" autocomplete="off">
+        <button class="btn-insert-coin" id="btn-insert-coin">投入硬幣 · INSERT COIN</button>
+      </div>
+    </div>
+    <div class="hero-machine" id="hero-machine-container"></div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: DETECTING ============ -->
+
+<div class="screen" id="screen-detect">
+  <div class="detect-container">
+    <div class="camera-frame">
+      <video id="camera-video" autoplay playsinline muted></video>
+      <canvas id="camera-canvas"></canvas>
+      <div class="camera-overlay" id="face-overlay"></div>
+    </div>
+
+    <div class="detect-instructions">
+      <div class="instruction-primary">
+        對著鏡頭
+        <span class="big">張大嘴</span>
+      </div>
+
+      <div class="mouth-progress">
+        <div class="mouth-progress-label">
+          <span>張嘴偵測</span>
+          <span class="mouth-progress-value" id="mouth-value">0%</span>
+        </div>
+        <div class="mouth-progress-bar">
+          <div class="mouth-progress-fill" id="mouth-fill"></div>
+        </div>
+      </div>
+
+      <div class="status-messages" id="detect-status">> 等待鏡頭權限...</div>
+
+      <button class="btn-primary" id="btn-manual-draw" style="display:none;">跳過鏡頭 · 直接抽</button>
+
+      <button class="btn-cancel" id="btn-cancel-detect">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 4: DRAWING ============ -->
+
+<div class="screen" id="screen-drawing">
+  <div class="drawing-container">
+    <div id="drawing-machine"></div>
+    <div class="drawing-status" id="drawing-status">扭蛋轉動中...</div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 5: REVEAL CAPSULE ============ -->
+
+<div class="screen" id="screen-capsule">
+  <div class="reveal-container">
+    <div class="floating-capsule" id="floating-capsule">
+      <div class="floating-capsule-top"></div>
+      <div class="floating-capsule-bottom"></div>
+    </div>
+    <div class="capsule-instruction">點一下打開</div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 6: REVEAL CARD ============ -->
+
+<div class="screen" id="screen-reveal">
+  <div class="reveal-container">
+    <div class="task-card" id="task-card">
+      <div class="card-header">
+        <div class="card-number" id="card-number">SET · 001</div>
+        <div class="card-group-name" id="card-group-name">阿公67</div>
+      </div>
+
+      <div class="card-icon" id="card-icon"></div>
+
+      <div class="card-theme" id="card-theme">販賣機</div>
+
+      <div class="card-flavor" id="card-flavor">做出那個永遠在等你投幣的機器</div>
+
+      <div class="card-footer">
+        <span id="card-footer-left">G4460 · WEEK 7</span>
+        <span>DIGITAL MAKERS</span>
+      </div>
+    </div>
+
+    <div class="reveal-actions">
+      <button class="btn-primary" id="btn-back-to-board">回到記錄牆</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADMIN PANEL (hidden by default, toggle with shift+R+R) ============ -->
+
+<div class="admin-panel" id="admin-panel">
+  <div>[ADMIN]</div>
+  <button id="btn-admin-reset">清空記錄牆</button>
+  <button id="btn-admin-fullscreen">全螢幕</button>
+</div>
+
+<footer>
+  G4460 數位自造者 · 鄭穎懋 · 大同大學 · Spring 2026
+</footer>
+
+</div>
+
+<script>
+/* ===================== CONSTANTS ===================== */
+
+const THEMES = [
+  {
+    id: 'vending',
+    name: '販賣機',
+    nameEn: 'Vending Machine',
+    flavor: '做出那個永遠在等你投幣的機器',
+    color: '#F85149',
+    iconFn: iconVending
+  },
+  {
+    id: 'arcade',
+    name: '遊戲機台',
+    nameEn: 'Arcade Cabinet',
+    flavor: '做出那個吞掉你最多零用錢的機器',
+    color: '#BC8CFF',
+    iconFn: iconArcade
+  },
+  {
+    id: 'gachapon',
+    name: '扭蛋機',
+    nameEn: 'Gachapon',
+    flavor: '做出那個剛剛決定了你們命運的機器',
+    color: '#F0883E',
+    iconFn: iconGachapon
+  },
+  {
+    id: 'photobooth',
+    name: '大頭貼機',
+    nameEn: 'Photo Booth',
+    flavor: '做出那個正在看著教室的機器',
+    color: '#58A6FF',
+    iconFn: iconPhotoBooth
+  },
+  {
+    id: 'kiosk',
+    name: '自助點餐機',
+    nameEn: 'Self-Order Kiosk',
+    flavor: '做出那個讓你不用開口的機器',
+    color: '#3FB950',
+    iconFn: iconKiosk
+  },
+  {
+    id: 'claw',
+    name: '夾娃娃機',
+    nameEn: 'Claw Crane',
+    flavor: '做出那個教你認識期待的機器',
+    color: '#E3B341',
+    iconFn: iconClaw
+  }
+];
+
+const STORAGE_KEY = 'g4460_gachapon_state_v1';
+const MOUTH_OPEN_THRESHOLD = 0.50;
+const MOUTH_HOLD_FRAMES = 8;
+
+/* ===================== STATE ===================== */
+
+let state = {
+  claimed: {} // { themeId: groupName }
+};
+
+let currentGroup = '';
+let currentTheme = null;
+let mouthHoldCounter = 0;
+let detectionActive = false;
+let videoStream = null;
+let modelsLoaded = false;
+
+/* ===================== STATE PERSISTENCE ===================== */
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = JSON.parse(raw);
+  } catch (e) {
+    console.warn('State load failed', e);
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn('State save failed', e);
+  }
+}
+
+function resetState() {
+  state = { claimed: {} };
+  saveState();
+  renderBoard();
+}
+
+/* ===================== PIXEL ART ICONS ===================== */
+// All icons use a 24x24 pixel grid, drawn with <rect> elements.
+
+function pixelRect(x, y, w, h, color) {
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/>`;
+}
+
+function iconVending() {
+  // Red vending machine with bottles visible through glass
+  const r = [];
+  const bodyR = '#F85149', bodyD = '#8B1F1A', glass = '#58A6FF', bottle = '#E3B341', dark = '#0D1117', light = '#E6EDF3';
+  // outer frame
+  r.push(pixelRect(3, 1, 18, 22, bodyR));
+  r.push(pixelRect(3, 1, 18, 1, '#FF7B74'));
+  r.push(pixelRect(3, 22, 18, 1, bodyD));
+  // top display
+  r.push(pixelRect(5, 3, 14, 2, dark));
+  r.push(pixelRect(5, 3, 14, 1, light));
+  // glass area
+  r.push(pixelRect(5, 6, 14, 12, glass));
+  r.push(pixelRect(5, 6, 14, 1, '#87C2FF'));
+  // bottles (3 rows x 3 cols)
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      r.push(pixelRect(6 + col * 4, 7 + row * 4, 2, 3, bottle));
+      r.push(pixelRect(6 + col * 4, 7 + row * 4, 2, 1, '#FDD974'));
+    }
+  }
+  // coin slot + delivery
+  r.push(pixelRect(5, 19, 6, 2, dark));
+  r.push(pixelRect(6, 19, 4, 1, '#FFD700'));
+  r.push(pixelRect(13, 19, 6, 3, dark));
+  // base
+  r.push(pixelRect(2, 22, 20, 1, dark));
+  return `<svg viewBox="0 0 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${r.join('')}</svg>`;
+}
+
+function iconArcade() {
+  // Arcade cabinet with screen and joystick
+  const r = [];
+  const body = '#BC8CFF', bodyD = '#6F4DBF', screen = '#58A6FF', dark = '#0D1117', red = '#F85149', yellow = '#E3B341', light = '#E6EDF3';
+  // top marquee
+  r.push(pixelRect(5, 1, 14, 3, red));
+  r.push(pixelRect(5, 1, 14, 1, '#FF8B85'));
+  // cabinet body (angled shape)
+  r.push(pixelRect(4, 4, 16, 2, body));
+  r.push(pixelRect(3, 6, 18, 12, body));
+  r.push(pixelRect(3, 6, 1, 12, bodyD));
+  r.push(pixelRect(20, 6, 1, 12, bodyD));
+  // screen area
+  r.push(pixelRect(6, 7, 12, 6, dark));
+  r.push(pixelRect(7, 8, 10, 4, screen));
+  // screen pixels / game art
+  r.push(pixelRect(8, 9, 1, 1, yellow));
+  r.push(pixelRect(10, 9, 1, 1, red));
+  r.push(pixelRect(12, 9, 1, 1, light));
+  r.push(pixelRect(14, 9, 1, 1, yellow));
+  r.push(pixelRect(8, 11, 8, 1, '#3FB950'));
+  // control panel
+  r.push(pixelRect(6, 14, 12, 4, bodyD));
+  // joystick
+  r.push(pixelRect(8, 14, 1, 2, dark));
+  r.push(pixelRect(7, 16, 3, 1, red));
+  // buttons
+  r.push(pixelRect(12, 15, 2, 2, red));
+  r.push(pixelRect(15, 15, 2, 2, yellow));
+  // base
+  r.push(pixelRect(2, 18, 20, 5, bodyD));
+  r.push(pixelRect(2, 22, 20, 1, dark));
+  return `<svg viewBox="0 0 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${r.join('')}</svg>`;
+}
+
+function iconGachapon() {
+  // Gachapon machine with capsules in the dome
+  const r = [];
+  const body = '#F0883E', bodyD = '#A85523', glass = '#87CEEB', dome = '#B8E3FF', dark = '#0D1117', yellow = '#E3B341', pink = '#FF8FA3', green = '#3FB950', blue = '#58A6FF';
+  // dome top
+  r.push(pixelRect(7, 3, 10, 1, dome));
+  r.push(pixelRect(6, 4, 12, 1, dome));
+  r.push(pixelRect(5, 5, 14, 8, glass));
+  r.push(pixelRect(5, 5, 14, 1, '#D4F0FF'));
+  // capsules inside
+  r.push(pixelRect(7, 7, 2, 2, yellow));
+  r.push(pixelRect(11, 6, 2, 2, pink));
+  r.push(pixelRect(15, 7, 2, 2, green));
+  r.push(pixelRect(9, 10, 2, 2, blue));
+  r.push(pixelRect(13, 10, 2, 2, yellow));
+  r.push(pixelRect(7, 11, 2, 2, pink));
+  r.push(pixelRect(15, 10, 2, 2, blue));
+  // body
+  r.push(pixelRect(4, 13, 16, 7, body));
+  r.push(pixelRect(4, 13, 16, 1, '#FFA05C'));
+  r.push(pixelRect(4, 19, 16, 1, bodyD));
+  // label
+  r.push(pixelRect(6, 15, 12, 2, dark));
+  r.push(pixelRect(7, 15, 10, 1, yellow));
+  // crank handle
+  r.push(pixelRect(18, 16, 2, 1, dark));
+  r.push(pixelRect(19, 15, 1, 3, dark));
+  // dispense slot
+  r.push(pixelRect(8, 17, 4, 2, dark));
+  // base
+  r.push(pixelRect(3, 20, 18, 3, bodyD));
+  r.push(pixelRect(3, 22, 18, 1, dark));
+  return `<svg viewBox="0 0 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${r.join('')}</svg>`;
+}
+
+function iconPhotoBooth() {
+  // Photo booth with curtain and camera
+  const r = [];
+  const curtain = '#58A6FF', curtainD = '#1F5AAA', frame = '#E6EDF3', frameD = '#8B949E', dark = '#0D1117', red = '#F85149', yellow = '#E3B341', lens = '#0D1117';
+  // top sign
+  r.push(pixelRect(5, 1, 14, 2, red));
+  r.push(pixelRect(5, 1, 14, 1, '#FF8B85'));
+  // booth outer frame
+  r.push(pixelRect(3, 3, 18, 20, frame));
+  r.push(pixelRect(3, 3, 18, 1, '#FFFFFF'));
+  r.push(pixelRect(3, 22, 18, 1, frameD));
+  r.push(pixelRect(3, 3, 1, 20, frameD));
+  r.push(pixelRect(20, 3, 1, 20, frameD));
+  // curtain at top (wavy)
+  r.push(pixelRect(5, 4, 14, 2, curtain));
+  r.push(pixelRect(5, 4, 2, 3, curtain));
+  r.push(pixelRect(9, 4, 2, 3, curtain));
+  r.push(pixelRect(13, 4, 2, 3, curtain));
+  r.push(pixelRect(17, 4, 2, 3, curtain));
+  r.push(pixelRect(5, 6, 14, 1, curtainD));
+  // camera area
+  r.push(pixelRect(8, 9, 8, 6, dark));
+  r.push(pixelRect(10, 10, 4, 4, lens));
+  r.push(pixelRect(11, 11, 2, 2, '#FFFFFF'));
+  r.push(pixelRect(15, 10, 1, 1, red)); // recording light
+  // screen below
+  r.push(pixelRect(6, 16, 12, 4, '#0D1117'));
+  r.push(pixelRect(7, 17, 10, 2, curtain));
+  r.push(pixelRect(8, 17, 2, 2, yellow));
+  r.push(pixelRect(12, 17, 2, 2, yellow));
+  // button
+  r.push(pixelRect(11, 20, 2, 2, red));
+  return `<svg viewBox="0 0 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${r.join('')}</svg>`;
+}
+
+function iconKiosk() {
+  // Self-order kiosk: tall screen on angled stand
+  const r = [];
+  const screen = '#3FB950', screenD = '#1F7A35', body = '#8B949E', bodyD = '#484F58', dark = '#0D1117', light = '#E6EDF3', yellow = '#E3B341', red = '#F85149';
+  // screen frame (angled top)
+  r.push(pixelRect(6, 2, 12, 14, bodyD));
+  r.push(pixelRect(6, 2, 12, 1, body));
+  // screen surface
+  r.push(pixelRect(7, 3, 10, 12, screen));
+  r.push(pixelRect(7, 3, 10, 1, '#6FE088'));
+  // screen UI: menu items (horizontal lines)
+  r.push(pixelRect(8, 5, 8, 1, light));
+  r.push(pixelRect(8, 7, 6, 1, light));
+  r.push(pixelRect(8, 9, 7, 1, light));
+  r.push(pixelRect(8, 11, 5, 1, light));
+  // order button
+  r.push(pixelRect(11, 13, 4, 1, yellow));
+  // speaker dots
+  r.push(pixelRect(8, 14, 1, 1, dark));
+  r.push(pixelRect(10, 14, 1, 1, dark));
+  r.push(pixelRect(12, 14, 1, 1, dark));
+  // neck/stand
+  r.push(pixelRect(10, 16, 4, 3, bodyD));
+  r.push(pixelRect(10, 16, 4, 1, body));
+  // card reader on side
+  r.push(pixelRect(14, 17, 3, 2, dark));
+  r.push(pixelRect(15, 18, 2, 1, red));
+  // base
+  r.push(pixelRect(4, 19, 16, 4, body));
+  r.push(pixelRect(4, 19, 16, 1, light));
+  r.push(pixelRect(4, 22, 16, 1, bodyD));
+  return `<svg viewBox="0 0 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${r.join('')}</svg>`;
+}
+
+function iconClaw() {
+  // Claw crane: glass box with claw hanging inside + prize
+  const r = [];
+  const body = '#E3B341', bodyD = '#A07D1C', glass = '#B8E3FF', dark = '#0D1117', claw = '#8B949E', light = '#E6EDF3', plush = '#FF8FA3', red = '#F85149';
+  // top frame
+  r.push(pixelRect(3, 1, 18, 2, red));
+  r.push(pixelRect(3, 1, 18, 1, '#FF8B85'));
+  // body frame sides
+  r.push(pixelRect(3, 3, 2, 17, body));
+  r.push(pixelRect(19, 3, 2, 17, body));
+  r.push(pixelRect(3, 3, 1, 17, '#FFD974'));
+  r.push(pixelRect(20, 3, 1, 17, bodyD));
+  // glass interior
+  r.push(pixelRect(5, 3, 14, 14, glass));
+  r.push(pixelRect(5, 3, 14, 1, '#D4F0FF'));
+  // claw rail (top)
+  r.push(pixelRect(5, 4, 14, 1, bodyD));
+  // claw mechanism
+  r.push(pixelRect(10, 5, 4, 1, claw));
+  r.push(pixelRect(11, 6, 2, 3, claw));
+  // claw fingers
+  r.push(pixelRect(10, 9, 1, 2, claw));
+  r.push(pixelRect(13, 9, 1, 2, claw));
+  r.push(pixelRect(10, 10, 1, 1, dark));
+  r.push(pixelRect(13, 10, 1, 1, dark));
+  // plush on floor
+  r.push(pixelRect(7, 13, 4, 3, plush));
+  r.push(pixelRect(7, 13, 4, 1, '#FFB0C0'));
+  r.push(pixelRect(8, 14, 1, 1, dark));
+  r.push(pixelRect(10, 14, 1, 1, dark));
+  r.push(pixelRect(13, 14, 3, 2, '#3FB950'));
+  // bottom panel
+  r.push(pixelRect(3, 17, 18, 3, bodyD));
+  // control joystick
+  r.push(pixelRect(11, 18, 2, 1, dark));
+  r.push(pixelRect(10, 19, 4, 1, red));
+  // base
+  r.push(pixelRect(2, 20, 20, 3, dark));
+  r.push(pixelRect(2, 22, 20, 1, '#000000'));
+  return `<svg viewBox="0 0 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${r.join('')}</svg>`;
+}
+
+/* ===================== MACHINE SVG (HERO) ===================== */
+
+function buildMachineSVG(opts = {}) {
+  const { shaking = false, capsuleDropping = false } = opts;
+  const shakeClass = shaking ? 'shaking' : '';
+  const dropClass = capsuleDropping ? 'capsule-drop' : '';
+
+  return `
+    <svg class="machine-svg ${shakeClass}" viewBox="0 0 160 220" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+      <!-- stand/base -->
+      <rect x="20" y="195" width="120" height="20" fill="#0D1117"/>
+      <rect x="24" y="200" width="112" height="12" fill="#484F58"/>
+      <rect x="24" y="200" width="112" height="2" fill="#8B949E"/>
+
+      <!-- body -->
+      <rect x="30" y="120" width="100" height="80" fill="#F85149"/>
+      <rect x="30" y="120" width="100" height="3" fill="#FF8B85"/>
+      <rect x="30" y="197" width="100" height="3" fill="#8B1F1A"/>
+      <rect x="30" y="120" width="3" height="80" fill="#FF8B85"/>
+      <rect x="127" y="120" width="3" height="80" fill="#8B1F1A"/>
+
+      <!-- label -->
+      <rect x="45" y="135" width="70" height="22" fill="#0D1117"/>
+      <rect x="45" y="135" width="70" height="2" fill="#E3B341"/>
+      <text x="80" y="151" text-anchor="middle" font-family="Press Start 2P, monospace" font-size="9" fill="#E3B341" letter-spacing="1">GACHA</text>
+
+      <!-- coin slot -->
+      <rect x="110" y="165" width="14" height="4" fill="#0D1117"/>
+      <rect x="112" y="166" width="10" height="2" fill="#E3B341"/>
+
+      <!-- crank -->
+      <rect x="115" y="175" width="6" height="4" fill="#484F58"/>
+      <circle cx="118" cy="182" r="5" fill="#8B949E"/>
+      <circle cx="118" cy="182" r="2" fill="#0D1117"/>
+
+      <!-- dispense slot -->
+      <rect x="50" y="170" width="40" height="20" fill="#0D1117"/>
+      <rect x="53" y="173" width="34" height="14" fill="#1F2328"/>
+
+      ${capsuleDropping ? `
+        <g transform="translate(70, 180)">
+          <g class="${dropClass}">
+            <circle cx="10" cy="10" r="11" fill="#E3B341"/>
+            <path d="M 0 10 A 10 10 0 0 1 20 10 Z" fill="rgba(255,255,255,0.35)"/>
+            <circle cx="6" cy="7" r="2" fill="rgba(255,255,255,0.6)"/>
+          </g>
+        </g>
+      ` : ''}
+
+      <!-- dome (on top) -->
+      <ellipse cx="80" cy="70" rx="55" ry="12" fill="#F85149"/>
+      <rect x="25" y="70" width="110" height="4" fill="#8B1F1A"/>
+      <path d="M 25 70 Q 25 20 80 20 Q 135 20 135 70 Z" fill="#87CEEB" fill-opacity="0.4" stroke="#B8E3FF" stroke-width="2"/>
+      <path d="M 30 70 Q 30 25 80 25 Q 130 25 130 70 Z" fill="#B8E3FF" fill-opacity="0.3"/>
+
+      <!-- capsules inside dome -->
+      <circle cx="55" cy="55" r="6" fill="#E3B341"/>
+      <path d="M 49 55 A 6 6 0 0 1 61 55 Z" fill="rgba(255,255,255,0.35)"/>
+      <circle cx="75" cy="50" r="6" fill="#58A6FF"/>
+      <path d="M 69 50 A 6 6 0 0 1 81 50 Z" fill="rgba(255,255,255,0.35)"/>
+      <circle cx="95" cy="55" r="6" fill="#3FB950"/>
+      <path d="M 89 55 A 6 6 0 0 1 101 55 Z" fill="rgba(255,255,255,0.35)"/>
+      <circle cx="65" cy="62" r="6" fill="#FF8FA3"/>
+      <path d="M 59 62 A 6 6 0 0 1 71 62 Z" fill="rgba(255,255,255,0.35)"/>
+      <circle cx="85" cy="62" r="6" fill="#BC8CFF"/>
+      <path d="M 79 62 A 6 6 0 0 1 91 62 Z" fill="rgba(255,255,255,0.35)"/>
+      <circle cx="105" cy="62" r="6" fill="#F0883E"/>
+      <path d="M 99 62 A 6 6 0 0 1 111 62 Z" fill="rgba(255,255,255,0.35)"/>
+
+      <!-- highlight on dome -->
+      <path d="M 40 40 Q 50 25 75 25" stroke="rgba(255,255,255,0.6)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+      <!-- LED indicator -->
+      <circle cx="50" cy="188" r="2" fill="#3FB950"/>
+    </svg>
+  `;
+}
+
+/* ===================== AUDIO SYNTHESIS ===================== */
+
+let audioCtx = null;
+
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq, duration, type = 'square', volume = 0.15, freqEnd = null) {
+  ensureAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  if (freqEnd !== null) {
+    osc.frequency.exponentialRampToValueAtTime(freqEnd, now + duration);
+  }
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + duration);
+}
+
+function playCoin() {
+  playTone(988, 0.08, 'square', 0.2);
+  setTimeout(() => playTone(1319, 0.15, 'square', 0.2), 80);
+}
+
+function playShake() {
+  ensureAudio();
+  const now = audioCtx.currentTime;
+  const duration = 1.8;
+  const bufferSize = audioCtx.sampleRate * duration;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * 0.4;
+  }
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 180;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.18, now + 0.08);
+  gain.gain.setValueAtTime(0.18, now + duration - 0.3);
+  gain.gain.linearRampToValueAtTime(0, now + duration);
+  source.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+  source.start(now);
+  // Add rhythmic clicks on top
+  for (let i = 0; i < 12; i++) {
+    setTimeout(() => playTone(80 + Math.random() * 40, 0.04, 'square', 0.12), i * 120 + Math.random() * 50);
+  }
+}
+
+function playDrop() {
+  ensureAudio();
+  playTone(500, 0.25, 'sine', 0.25, 80);
+  setTimeout(() => playTone(70, 0.1, 'square', 0.3), 240);
+}
+
+function playOpen() {
+  playTone(1047, 0.08, 'square', 0.18);
+  setTimeout(() => playTone(1319, 0.08, 'square', 0.18), 60);
+  setTimeout(() => playTone(1568, 0.12, 'square', 0.18), 120);
+  setTimeout(() => playTone(2093, 0.3, 'square', 0.2), 180);
+}
+
+function playReveal() {
+  const notes = [523, 659, 784, 1047, 1319];
+  notes.forEach((f, i) => setTimeout(() => playTone(f, 0.15, 'square', 0.2), i * 80));
+}
+
+function playError() {
+  playTone(200, 0.2, 'square', 0.2, 100);
+}
+
+function playBlip() {
+  playTone(800, 0.05, 'square', 0.1);
+}
+
+/* ===================== SCREEN MANAGEMENT ===================== */
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ===================== BOARD / RECORD WALL ===================== */
+
+function renderBoard() {
+  const grid = document.getElementById('board-grid');
+  grid.innerHTML = '';
+  let claimedCount = 0;
+
+  THEMES.forEach((theme, idx) => {
+    const claimed = state.claimed[theme.id];
+    const slot = document.createElement('div');
+    slot.className = `board-slot ${claimed ? 'claimed' : 'unclaimed'}`;
+    slot.innerHTML = `
+      <div class="slot-number">// ${String(idx + 1).padStart(2, '0')}</div>
+      ${claimed ? `
+        <div class="slot-icon">${theme.iconFn()}</div>
+        <div>
+          <div class="slot-theme">${theme.name}</div>
+          <div class="slot-group">— ${claimed} —</div>
+        </div>
+      ` : `
+        <div class="slot-icon">
+          <div style="position:relative; width:80px; height:80px;">
+            <div class="slot-fog-mark">?</div>
+          </div>
+        </div>
+        <div class="slot-empty-label">未抽</div>
+      `}
+    `;
+    grid.appendChild(slot);
+    if (claimed) claimedCount++;
+  });
+
+  const remaining = THEMES.length - claimedCount;
+  document.getElementById('draws-remaining').textContent = `SLOTS REMAINING: ${remaining}/${THEMES.length}`;
+
+  const btnNext = document.getElementById('btn-draw-next');
+  const title = document.getElementById('board-title');
+  const subtitle = document.getElementById('board-subtitle');
+
+  if (remaining === 0) {
+    btnNext.style.display = 'none';
+    title.textContent = '六組命運都定了';
+    subtitle.textContent = '開始動手。';
+  } else if (claimedCount === 0) {
+    btnNext.style.display = '';
+    title.textContent = '轉吧，六個命運在等你們';
+    subtitle.textContent = '每組派一位代表上來抽。抽過的不會再出現。';
+  } else {
+    btnNext.style.display = '';
+    title.textContent = `還剩 ${remaining} 組命運`;
+    subtitle.textContent = '下一組請派代表上來。';
+  }
+}
+
+/* ===================== DRAW FLOW ===================== */
+
+function startDrawNext() {
+  const claimedCount = Object.keys(state.claimed).length;
+  if (claimedCount >= THEMES.length) return;
+
+  document.getElementById('start-draw-number').textContent = claimedCount + 1;
+  document.getElementById('group-input').value = '';
+
+  // build hero machine
+  document.getElementById('hero-machine-container').innerHTML = buildMachineSVG();
+
+  showScreen('screen-start');
+  setTimeout(() => document.getElementById('group-input').focus(), 300);
+}
+
+function onInsertCoin() {
+  const input = document.getElementById('group-input');
+  const name = input.value.trim();
+  if (!name) {
+    input.focus();
+    input.style.borderColor = 'var(--accent-red)';
+    setTimeout(() => { input.style.borderColor = ''; }, 1000);
+    playError();
+    return;
+  }
+  currentGroup = name;
+  playCoin();
+  setTimeout(() => startDetection(), 400);
+}
+
+/* ===================== CAMERA & FACE DETECTION ===================== */
+
+async function loadModels() {
+  if (modelsLoaded) return true;
+  try {
+    const modelUrl = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
+    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(modelUrl);
+    modelsLoaded = true;
+    return true;
+  } catch (e) {
+    console.error('Model load failed', e);
+    return false;
+  }
+}
+
+async function startDetection() {
+  showScreen('screen-detect');
+  const statusEl = document.getElementById('detect-status');
+  const fillEl = document.getElementById('mouth-fill');
+  const valueEl = document.getElementById('mouth-value');
+  const overlay = document.getElementById('face-overlay');
+  fillEl.style.width = '0%';
+  fillEl.classList.remove('charged');
+  valueEl.textContent = '0%';
+  overlay.classList.remove('detected');
+
+  statusEl.textContent = '> 請求鏡頭權限...';
+  statusEl.className = 'status-messages';
+
+  // 1. Get camera
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    const video = document.getElementById('camera-video');
+    video.srcObject = videoStream;
+    await video.play();
+  } catch (e) {
+    statusEl.textContent = '> 鏡頭打不開。可直接抽（跳過張嘴偵測）。';
+    statusEl.className = 'status-messages error';
+    document.getElementById('btn-manual-draw').style.display = '';
+    return;
+  }
+
+  // 2. Load face-api models
+  statusEl.textContent = '> 載入偵測模型...';
+  const ok = await loadModels();
+  if (!ok) {
+    statusEl.textContent = '> 模型載入失敗。可直接抽（跳過偵測）。';
+    statusEl.className = 'status-messages error';
+    document.getElementById('btn-manual-draw').style.display = '';
+    return;
+  }
+
+  document.getElementById('btn-manual-draw').style.display = 'none';
+
+  statusEl.textContent = '> 對著鏡頭張大嘴，像被扭蛋嚇到那樣';
+  statusEl.className = 'status-messages';
+
+  detectionActive = true;
+  mouthHoldCounter = 0;
+  detectLoop();
+}
+
+async function detectLoop() {
+  if (!detectionActive) return;
+  const video = document.getElementById('camera-video');
+  if (video.readyState < 2) {
+    requestAnimationFrame(detectLoop);
+    return;
+  }
+
+  try {
+    const detection = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+      .withFaceLandmarks(true);
+
+    const overlay = document.getElementById('face-overlay');
+    const fillEl = document.getElementById('mouth-fill');
+    const valueEl = document.getElementById('mouth-value');
+    const statusEl = document.getElementById('detect-status');
+
+    if (detection) {
+      overlay.classList.add('detected');
+      const mar = getMouthAspectRatio(detection.landmarks);
+      // Map MAR into 0-100% with threshold visualization
+      const pct = Math.min(100, Math.max(0, (mar / MOUTH_OPEN_THRESHOLD) * 80));
+      fillEl.style.width = pct + '%';
+      valueEl.textContent = Math.round(pct) + '%';
+
+      if (mar > MOUTH_OPEN_THRESHOLD) {
+        mouthHoldCounter++;
+        fillEl.classList.add('charged');
+        statusEl.textContent = '> 繼續張著...';
+        if (mouthHoldCounter >= MOUTH_HOLD_FRAMES) {
+          triggerDraw();
+          return;
+        }
+      } else {
+        mouthHoldCounter = Math.max(0, mouthHoldCounter - 1);
+        if (mouthHoldCounter === 0) fillEl.classList.remove('charged');
+      }
+    } else {
+      overlay.classList.remove('detected');
+      fillEl.style.width = '0%';
+      valueEl.textContent = '0%';
+      mouthHoldCounter = 0;
+      fillEl.classList.remove('charged');
+      document.getElementById('detect-status').textContent = '> 把臉放進虛線框裡';
+    }
+  } catch (e) {
+    console.warn('Detection error', e);
+  }
+
+  requestAnimationFrame(detectLoop);
+}
+
+function getMouthAspectRatio(landmarks) {
+  // face-api.js 68-point model — inner mouth: 60-67
+  // 60 = left inner corner, 64 = right inner corner
+  // 62 = top center inner, 66 = bottom center inner
+  const pts = landmarks.positions;
+  const vert = Math.hypot(pts[62].x - pts[66].x, pts[62].y - pts[66].y);
+  const horz = Math.hypot(pts[60].x - pts[64].x, pts[60].y - pts[64].y);
+  if (horz < 1) return 0;
+  return vert / horz;
+}
+
+function stopDetection() {
+  detectionActive = false;
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+}
+
+function onCancelDetect() {
+  stopDetection();
+  showScreen('screen-board');
+  renderBoard();
+}
+
+/* ===================== TRIGGER THE DRAW ===================== */
+
+function triggerDraw() {
+  stopDetection();
+  playCoin();
+  setTimeout(() => {
+    showScreen('screen-drawing');
+    runMachineShake();
+  }, 200);
+}
+
+function runMachineShake() {
+  const container = document.getElementById('drawing-machine');
+  container.innerHTML = buildMachineSVG({ shaking: true });
+  playShake();
+  document.getElementById('drawing-status').textContent = '扭蛋轉動中...';
+
+  setTimeout(() => {
+    container.innerHTML = buildMachineSVG({ shaking: true, capsuleDropping: true });
+    document.getElementById('drawing-status').textContent = '扭蛋掉下來了';
+    playDrop();
+  }, 1500);
+
+  setTimeout(() => {
+    // pick a random unclaimed theme
+    const unclaimed = THEMES.filter(t => !state.claimed[t.id]);
+    currentTheme = unclaimed[Math.floor(Math.random() * unclaimed.length)];
+    showCapsule();
+  }, 3600);
+}
+
+function showCapsule() {
+  // Color the capsule bottom to match theme
+  const capsule = document.getElementById('floating-capsule');
+  const bottom = capsule.querySelector('.floating-capsule-bottom');
+  bottom.style.background = currentTheme.color;
+  capsule.classList.remove('opening');
+  showScreen('screen-capsule');
+
+  // Click to open
+  const openHandler = () => {
+    capsule.removeEventListener('click', openHandler);
+    capsule.classList.add('opening');
+    playOpen();
+    setTimeout(() => openCapsule(), 600);
+  };
+  capsule.addEventListener('click', openHandler);
+
+  // Also allow auto-open after 8 seconds
+  setTimeout(() => {
+    if (document.getElementById('screen-capsule').classList.contains('active')) {
+      capsule.click();
+    }
+  }, 8000);
+}
+
+function openCapsule() {
+  // Claim the theme
+  state.claimed[currentTheme.id] = currentGroup;
+  saveState();
+
+  // Render the card
+  const claimedIdx = Object.values(state.claimed).length;
+  document.getElementById('card-number').textContent = `SET · ${String(claimedIdx).padStart(3, '0')} / 006`;
+  document.getElementById('card-group-name').textContent = currentGroup;
+  document.getElementById('card-icon').innerHTML = currentTheme.iconFn();
+  document.getElementById('card-theme').textContent = currentTheme.name;
+  document.getElementById('card-flavor').textContent = currentTheme.flavor;
+
+  // Apply accent color to card border
+  const card = document.getElementById('task-card');
+  card.style.borderColor = currentTheme.color;
+  card.style.animation = 'none';
+  void card.offsetWidth; // force reflow
+  card.style.animation = '';
+
+  showScreen('screen-reveal');
+  setTimeout(() => playReveal(), 300);
+}
+
+function onBackToBoard() {
+  currentGroup = '';
+  currentTheme = null;
+  renderBoard();
+  showScreen('screen-board');
+  playBlip();
+}
+
+/* ===================== ADMIN / KEYBOARD ===================== */
+
+let shiftRPresses = 0;
+let shiftRTimer = null;
+
+document.addEventListener('keydown', (e) => {
+  if (e.shiftKey && e.key.toLowerCase() === 'r') {
+    shiftRPresses++;
+    clearTimeout(shiftRTimer);
+    if (shiftRPresses >= 2) {
+      document.getElementById('admin-panel').classList.toggle('visible');
+      shiftRPresses = 0;
+    } else {
+      shiftRTimer = setTimeout(() => { shiftRPresses = 0; }, 500);
+    }
+  }
+  if (e.key === 'F11' || (e.key === 'f' && e.shiftKey)) {
+    // pass through
+  }
+});
+
+/* ===================== EVENT WIRING ===================== */
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  renderBoard();
+
+  document.getElementById('btn-draw-next').addEventListener('click', () => {
+    ensureAudio();
+    playBlip();
+    startDrawNext();
+  });
+
+  document.getElementById('btn-insert-coin').addEventListener('click', onInsertCoin);
+  document.getElementById('group-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') onInsertCoin();
+  });
+
+  document.getElementById('btn-cancel-detect').addEventListener('click', onCancelDetect);
+
+  document.getElementById('btn-manual-draw').addEventListener('click', () => {
+    triggerDraw();
+  });
+
+  document.getElementById('btn-back-to-board').addEventListener('click', onBackToBoard);
+
+  document.getElementById('btn-admin-reset').addEventListener('click', () => {
+    if (confirm('確定要清空記錄牆嗎？這個動作無法復原。')) {
+      resetState();
+      document.getElementById('admin-panel').classList.remove('visible');
+    }
+  });
+
+  document.getElementById('btn-admin-fullscreen').addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  });
+
+  // Detect if face-api.js library is loaded
+  const checkLib = setInterval(() => {
+    if (typeof faceapi !== 'undefined') {
+      clearInterval(checkLib);
+      document.getElementById('sys-status').textContent = 'ONLINE';
+    }
+  }, 500);
+});
+</script>
+
+</body>
+</html>
